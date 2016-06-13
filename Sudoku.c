@@ -5,7 +5,6 @@
 int main (int argv, char *argc[]) {
 	
 	Cell ***grid; 		/*2D Array for the grid*/
-	int i, j;			/*counter variables*/
 	FILE *fp;			/*file pointer for input*/
 	
 	if (argv != 2) {
@@ -23,14 +22,14 @@ int main (int argv, char *argc[]) {
 	grid = buildGrid(fp, 9);
 	fclose(fp);
 	
-	printGrid(grid, 3);
+	printGrid(grid, 9);
 	if (!solveGrid(grid, 9)) {
 		
 		printf("Error solving grid\n");
 		return 0;
 		
 	}
-	printGrid(grid, 3);
+	printGrid(grid, 9);
 	
 	/*wrap-up code*/
 	destroyGrid(grid, 9);
