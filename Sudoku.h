@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 /*ERROR OUTPUTS*/
@@ -18,7 +19,80 @@ typedef struct c {
 	
 }Cell;
 
-/*function for initialization of the grid
+/*Function used to generate a set of accepted values
+ * d -> dimensions (amount of accepted values)*/
+
+char *generateAcceptedValues(int d) {
+	
+	char *values;
+	int i;
+	
+	values = malloc(sizeof(char)*d);
+	UNALLOCATEDCHECK(values);
+	
+	for (i = 0; i < d; i++) {
+		
+		if (i + 49 < 58) {/*use regular numbers (1-9)*/
+			
+			values[i] = i + 49;
+			
+		}else {/*start using characters (A-Z)*/
+			
+			values[i] = i + 56;
+			
+		}
+		
+	}
+	
+	return values;
+	
+}
+
+/*Function used to find the location of a value in the avs
+ * avs -> Accepted Value Set
+ * v -> value to find*/
+int findValueInSet(char *avs, char v) {
+	
+	int i;
+	
+	for (i = 0; i < (int)strlen(avs); i++) {
+		
+		if (avs[i] == v) {
+			return i+1;
+		}
+		
+	}
+	
+	return -1;
+	
+}
+
+int *getNewLocation(Cell ***g, int d, Cell *curr) {
+	
+	int *new;
+	int i, j;
+	
+	new = malloc(sizeof(int)*2);
+	
+	for (i = 0; i < d; i++) {
+		
+		for (j = 0; j < d; j++) {
+			
+			if (curr == g[i][j]) {
+				new[0] = i;
+				new[1] = j;
+				return new;
+			}
+			
+		}
+		
+	}
+	
+	return NULL;
+	
+}
+
+/*Function for initialization of the grid
  * fp -> file pointer
  * d -> dimensions*/
 Cell ***buildGrid(FILE *fp, int d) {
@@ -124,7 +198,7 @@ bool gridUnsolved(Cell ***g, int d) {
  * value -> value being tested
  * currI -> current 'i' coordinate
  * currJ -> current 'j' coordinate*/
-bool valueAccepted(Cell ***g, int d, int value, int currI, int currJ) {
+bool valueAccepted(Cell ***g, int d, char value, int currI, int currJ) {
 	
 	int i, j;
 	int blockI, blockJ; /*stores the top-left corner of each grid*/
@@ -132,11 +206,10 @@ bool valueAccepted(Cell ***g, int d, int value, int currI, int currJ) {
 	/*checking row*/
 	for (i = 0; i < d; i++) {
 		
-		if (i == currI) {
+		if (i == currJ) {
 			/*ignore*/
 		}else {
-			if (g[i][currJ]->val == value) {
-				printf("%d found at %d:%d (row)\n", value, i, currJ);
+			if (g[currI][i]->val == value) {
 				return FALSE;
 			}
 		}
@@ -146,11 +219,10 @@ bool valueAccepted(Cell ***g, int d, int value, int currI, int currJ) {
 	/*checking column*/
 	for (i = 0; i < d; i++) {
 		
-		if (i == currJ) {
+		if (i == currI) {
 			/*ignore*/
 		}else {
-			if (g[currI][i]->val == value) {
-				printf("%d found at %d:%d (col)\n", value, currI, i);
+			if (g[i][currJ]->val == value) {
 				return FALSE;
 			}
 		}
@@ -158,17 +230,20 @@ bool valueAccepted(Cell ***g, int d, int value, int currI, int currJ) {
 	}
 	
 	/*checking block*/
-	blockI = (currI/sqrt(d))*sqrt(d);
-	blockJ = (currJ/sqrt(d))*sqrt(d);
-	for (i = blockI; i < blockI+d; i++) {
+	blockI = currI/sqrt(d);
+	blockJ = currJ/sqrt(d);
+
+	blockI = blockI*sqrt(d);
+	blockJ = blockJ*sqrt(d);
+	
+	for (i = blockI; i < blockI+sqrt(d); i++) {
 		
-		for (j = blockJ; j < blockJ+d; j++) {
+		for (j = blockJ; j < blockJ+sqrt(d); j++) {
 			
-			if (i == currI && j == blockJ) {
+			if (i == currI && j == currJ) {
 				/*ignore*/
 			}else {
 				if (g[i][j]->val == value) {
-					printf("%d found at %d:%d (block)\n", value, i, j);
 					return FALSE;
 				}
 			}
@@ -203,18 +278,22 @@ Cell *returnLastSpot(Cell ***g, int d, int currI, int currJ) {
 		
 	}while(!g[currI][currJ]->isEditable);
 	
+	printf("backtracked to %d %d\n", currI, currJ);
 	return g[currI][currJ];/*return new spot*/
 	
 }
 
 /*Function used to contain algorithm for solving Sudoku grid
  * g -> loaded grid
- * d -> dimenions of grid*/
-bool solveGrid(Cell ***g, int d) {
+ * d -> dimenions of grid
+ * avs -> Accepted Value Set*/
+bool solveGrid(Cell ***g, int d, char *avs) {
 	
 	Cell *curr; /*pointer to current grid*/
 	int i, j;
+	int *newCoord; /*used for finding new location for backtracker*/
 	char attemptedVal; /*value that is currently being inserted*/
+	int avsCounter;
 	
 	curr = malloc(sizeof(Cell));
 	UNALLOCATEDCHECK(curr);
@@ -222,7 +301,8 @@ bool solveGrid(Cell ***g, int d) {
 	curr = g[0][0];
 	i = 0;
 	j = 0;
-	attemptedVal = 1;
+	attemptedVal = avs[0];
+	avsCounter = 0;
 	while (gridUnsolved(g, d)) {
 		
 		if (!curr->isEditable) {/*move to next one*/
@@ -237,9 +317,10 @@ bool solveGrid(Cell ***g, int d) {
 			
 		}else {/*work on this cell*/
 			
-			if (valueAccepted(g, sqrt(d), attemptedVal, i, j)) {/*insert value*/
+			if (valueAccepted(g, d, attemptedVal, i, j)) {/*insert value*/
 				curr->val = attemptedVal;
-				attemptedVal = 1;
+				avsCounter = 0;
+				attemptedVal = avs[avsCounter];
 				/*move forward*/
 				if (j == 8) {
 					i++;
@@ -250,10 +331,20 @@ bool solveGrid(Cell ***g, int d) {
 				curr = g[i][j];
 			}else {/*increment attemptedVal and check if backtracking is needed*/
 				
-				attemptedVal++;
-				if (attemptedVal == d+1) {/*backtrack*/
+				avsCounter++;
+				attemptedVal = avs[avsCounter];
+				if (avsCounter == d) {/*backtrack*/
+					if (curr == g[0][0]) {/*not possible to further backtrack, puzzle not possible*/
+						return FALSE;
+					}
 					curr = returnLastSpot(g, d, i, j);
-					attemptedVal = curr->val+1;
+					newCoord = getNewLocation(g, d, curr);
+					avsCounter = findValueInSet(avs, curr->val);
+					curr->val = '0';
+					attemptedVal = avs[avsCounter];
+					i = newCoord[0];
+					j = newCoord[1];
+					
 				}
 				
 			}
