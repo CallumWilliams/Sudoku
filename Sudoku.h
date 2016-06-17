@@ -58,37 +58,12 @@ int findValueInSet(char *avs, char v) {
 	for (i = 0; i < (int)strlen(avs); i++) {
 		
 		if (avs[i] == v) {
-			return i+1;
+			return i;
 		}
 		
 	}
 	
-	return -1;
-	
-}
-
-int *getNewLocation(Cell ***g, int d, Cell *curr) {
-	
-	int *new;
-	int i, j;
-	
-	new = malloc(sizeof(int)*2);
-	
-	for (i = 0; i < d; i++) {
-		
-		for (j = 0; j < d; j++) {
-			
-			if (curr == g[i][j]) {
-				new[0] = i;
-				new[1] = j;
-				return new;
-			}
-			
-		}
-		
-	}
-	
-	return NULL;
+	return -2;
 	
 }
 
@@ -261,7 +236,12 @@ bool valueAccepted(Cell ***g, int d, char value, int currI, int currJ) {
  * d -> dimensions
  * currI -> current 'i' coordinate
  * currJ -> current 'j' coordinate*/
-Cell *returnLastSpot(Cell ***g, int d, int currI, int currJ) {
+int *returnLastSpot(Cell ***g, int d, int currI, int currJ) {
+	
+	int *newCoord;
+	
+	newCoord = malloc(sizeof(int)*2);
+	UNALLOCATEDCHECK(newCoord);
 	
 	do {/*find the earliest editable cell*/
 		
@@ -276,10 +256,13 @@ Cell *returnLastSpot(Cell ***g, int d, int currI, int currJ) {
 			
 		}
 		
+		
 	}while(!g[currI][currJ]->isEditable);
 	
-	printf("backtracked to %d %d\n", currI, currJ);
-	return g[currI][currJ];/*return new spot*/
+	newCoord[0] = currI;
+	newCoord[1] = currJ;
+	
+	return newCoord;
 	
 }
 
@@ -334,16 +317,28 @@ bool solveGrid(Cell ***g, int d, char *avs) {
 				avsCounter++;
 				attemptedVal = avs[avsCounter];
 				if (avsCounter == d) {/*backtrack*/
-					if (curr == g[0][0]) {/*not possible to further backtrack, puzzle not possible*/
+					if ((curr == g[0][0])) {/*not possible to further backtrack, puzzle not possible*/
 						return FALSE;
 					}
-					curr = returnLastSpot(g, d, i, j);
-					newCoord = getNewLocation(g, d, curr);
-					avsCounter = findValueInSet(avs, curr->val);
+					/*get previous position*/
+					do {/*keep going until we find a cell that has more options*/
+						
+						newCoord = returnLastSpot(g, d, i, j);
+						i = newCoord[0];
+						j = newCoord[1];
+						avsCounter = findValueInSet(avs, g[i][j]->val);
+						avsCounter = findValueInSet(avs, g[i][j]->val);
+						if (avsCounter == -2) {/*should NEVER happen, unless something corrupts the avs*/
+							printf("Unexpected error\n");
+							return FALSE;
+						}
+						
+					}while(avsCounter == (int)strlen(avs)-1);
+					
+					attemptedVal = avs[avsCounter+1];
+					/*move and clear curr pointer*/
+					curr = g[i][j];
 					curr->val = '0';
-					attemptedVal = avs[avsCounter];
-					i = newCoord[0];
-					j = newCoord[1];
 					
 				}
 				

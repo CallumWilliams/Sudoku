@@ -31,6 +31,7 @@ int main (int argv, char *argc[]) {
 		
 	}
 	
+	printf("IMPORTED\n");
 	printGrid(grid, 9);
 	if (!solveGrid(grid, 9, accVal)) {
 		
@@ -38,6 +39,7 @@ int main (int argv, char *argc[]) {
 		return 0;
 		
 	}
+	printf("SOLUTION\n");
 	printGrid(grid, 9);
 	
 	/*wrap-up code*/
